@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"strings"
+
+	"github.com/Zeke-MA/pokedexcli/commands"
 )
 
 func main() {
@@ -16,11 +18,9 @@ func main() {
 			input := strings.ToLower(scanner.Text())
 			words := strings.Fields(input)
 			command := words[0]
-			// Check if the command provided is in the map of valid commands
-			key, ok := validCommands[command]
+			key, ok := commands.ValidCommands[command]
 			if ok {
-				// Call the function for the command
-				key.callback()
+				key.Callback()
 			} else {
 				fmt.Println("Unknown command")
 			}
