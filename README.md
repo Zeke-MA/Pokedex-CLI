@@ -1,4 +1,4 @@
-Guided Project from the boot.dev platform. The Go program is a REPL leveraging PokeAPI to simulate a Pokedex!
+Guided Project from the :bear: boot.dev :bear: platform. The Go program is a REPL leveraging PokeAPI to simulate a Pokedex!
 
 Link to the project details below:
 
