@@ -1,6 +1,7 @@
 package pokeapi
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -13,6 +14,22 @@ type Client struct {
 	httpClient *http.Client
 	baseURL    string
 }
+type LocationArea struct {
+	Name string `json:"name"`
+	Url  string `json:"url"`
+}
+
+type APIResponse[T any] struct {
+	Count    int    `json:"count"`
+	Next     string `json:"next"`
+	Previous string `json:"previous"`
+	Results  []T    `json:"results"`
+}
+
+type Config struct {
+	Next     *string
+	Previous *string
+}
 
 func NewClient() *Client {
 	return &Client{
@@ -21,13 +38,12 @@ func NewClient() *Client {
 	}
 }
 
-func CreateUrl(endpoints ...string) string {
-	finalUrl := baseUrl + strings.Join(endpoints, "/")
+func CreateUrl(c *Client, endpoints ...string) string {
+	finalUrl := c.baseURL + strings.Join(endpoints, "/")
 	return finalUrl
 }
 
-func (c *Client) NewRequest(method, endpoint string, body io.Reader) (*http.Request, error) {
-	url := CreateUrl(c.baseURL, endpoint)
+func NewRequest(method, url string, body io.Reader, c *Client) (*http.Request, error) {
 
 	req, err := http.NewRequest(method, url, body)
 	if err != nil {
@@ -37,8 +53,41 @@ func (c *Client) NewRequest(method, endpoint string, body io.Reader) (*http.Requ
 	return req, nil
 }
 
-// create do request function
+func DoRequest(request *http.Request, c *Client) (*http.Response, error) {
+	res, err := c.httpClient.Do(request)
 
-// create get response function
+	if err != nil {
+		return nil, fmt.Errorf("cannot perform request: %v", err)
+	}
 
-// create unmarshal function
+	return res, nil
+}
+
+func GetResponse(response *http.Response) ([]byte, error) {
+	body, err := io.ReadAll(response.Body)
+
+	if err != nil {
+		return nil, fmt.Errorf("unable to retreive body from response: %v", err)
+	}
+
+	if response.StatusCode > 299 {
+		return nil, fmt.Errorf("response failed with status code: %d and body: %s", response.StatusCode, body)
+	}
+	defer response.Body.Close()
+
+	return body, nil
+
+}
+
+func Unmarshal[T any](body []byte, config *Config) ([]T, error) {
+	var APIResponse APIResponse[T]
+	err := json.Unmarshal(body, &APIResponse)
+	if err != nil {
+		return nil, fmt.Errorf("unable to parse json: %v", err)
+	}
+
+	config.Next = &APIResponse.Next
+	config.Previous = &APIResponse.Previous
+
+	return APIResponse.Results, nil
+}

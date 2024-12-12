@@ -7,10 +7,13 @@ import (
 	"strings"
 
 	"github.com/Zeke-MA/pokedexcli/commands"
+	"github.com/Zeke-MA/pokedexcli/internal/pokeapi"
 )
 
 func main() {
 	scanner := bufio.NewScanner(os.Stdin)
+	pokeClient := pokeapi.NewClient()
+	pokeConfig := &pokeapi.Config{}
 
 	for {
 		fmt.Print("Pokedex > ")
@@ -20,7 +23,7 @@ func main() {
 			command := words[0]
 			key, ok := commands.ValidCommands[command]
 			if ok {
-				key.Callback()
+				key.Callback(pokeConfig, pokeClient)
 			} else {
 				fmt.Println("Unknown command")
 			}

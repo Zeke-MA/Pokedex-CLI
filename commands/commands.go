@@ -1,38 +1,19 @@
 package commands
 
 import (
-	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 	"os"
+
+	"github.com/Zeke-MA/pokedexcli/internal/pokeapi"
 )
 
 type cliCommand struct {
 	name        string
 	description string
-	Callback    func() error
-}
-
-type LocationArea struct {
-	Name string `json:"name"`
-	Url  string `json:"url"`
-}
-
-type APIResponse struct {
-	Count    int            `json:"count"`
-	Next     string         `json:"next"`
-	Previous string         `json:"previous"`
-	Results  []LocationArea `json:"results"`
-}
-
-type Config struct {
-	Next     *string
-	Previous *string
+	Callback    func(cfg *pokeapi.Config, client *pokeapi.Client) error
 }
 
 var ValidCommands map[string]cliCommand
-var config = &Config{}
 
 func init() {
 
@@ -50,23 +31,23 @@ func init() {
 		"map": {
 			name:        "map",
 			description: "Displays names of the explorable locations. Limited to 20 results per command call.",
-			Callback:    func() error { return commandMap(config) },
+			Callback:    commandMap,
 		},
 		"mapb": {
 			name:        "mapb",
 			description: "Displays previous 20 locations if available.",
-			Callback:    func() error { return commandMapb(config) },
+			Callback:    commandMapb,
 		},
 	}
 }
 
-func commandExit() error {
+func commandExit(config *pokeapi.Config, client *pokeapi.Client) error {
 	fmt.Println("Closing the Pokedex... Goodbye!")
 	os.Exit(0)
 	return nil
 }
 
-func commandHelp() error {
+func commandHelp(config *pokeapi.Config, client *pokeapi.Client) error {
 	fmt.Println("Welcome to the Pokedex!")
 	fmt.Println("Usage:")
 	fmt.Println("")
@@ -78,112 +59,85 @@ func commandHelp() error {
 	return nil
 }
 
-func commandMap(config *Config) error {
+func commandMap(config *pokeapi.Config, client *pokeapi.Client) error {
 
-	baseUrl := "https://pokeapi.co/api/v2/"
+	endpoint := "location-area"
 
-	endpoint := "location-area/"
-
-	finalUrl := baseUrl + endpoint
+	url := pokeapi.CreateUrl(client, endpoint)
 
 	if config.Next != nil && *config.Next != "" {
-		finalUrl = *config.Next
+		url = *config.Next
 	}
 
-	req, err := http.NewRequest("GET", finalUrl, nil)
-	if err != nil {
-		return fmt.Errorf("unable to communicate with PokeAPI at this time: %v", err)
-	}
-
-	client := &http.Client{}
-	res, err := client.Do(req)
+	request, err := pokeapi.NewRequest("GET", url, nil, client)
 
 	if err != nil {
-		return fmt.Errorf("cannot perform request: %v", err)
+		return err
 	}
 
-	body, err := io.ReadAll(res.Body)
+	response, err := pokeapi.DoRequest(request, client)
 
 	if err != nil {
-		return fmt.Errorf("unable to retreive body from response: %v", err)
+		return err
 	}
 
-	if res.StatusCode > 299 {
-		return fmt.Errorf("response failed with status code: %d and body: %s", res.StatusCode, body)
-	}
-	defer res.Body.Close()
-
-	var LocationAreaResponse APIResponse
-	err = json.Unmarshal(body, &LocationAreaResponse)
+	body, err := pokeapi.GetResponse(response)
 	if err != nil {
-		return fmt.Errorf("unable to parse json: %v", err)
+		return err
 	}
 
-	config.Next = &LocationAreaResponse.Next
-	config.Previous = &LocationAreaResponse.Previous
+	results, err := pokeapi.Unmarshal[pokeapi.LocationArea](body, config)
 
-	for _, location := range LocationAreaResponse.Results {
+	if err != nil {
+		return err
+	}
+
+	for _, location := range results {
 		fmt.Println(location.Name)
 	}
-
-	fmt.Println(*config.Next)
 
 	return nil
 }
 
-func commandMapb(config *Config) error {
+func commandMapb(config *pokeapi.Config, client *pokeapi.Client) error {
 
-	baseUrl := "https://pokeapi.co/api/v2/"
+	endpoint := "location-area"
 
-	endpoint := "location-area/"
-
-	finalUrl := baseUrl + endpoint
+	url := pokeapi.CreateUrl(client, endpoint)
 
 	if config.Previous != nil && *config.Previous != "" {
-		finalUrl = *config.Previous
+		url = *config.Previous
 	} else if config.Previous == nil || *config.Previous == "" {
 		fmt.Println("you're on the first page")
 		return nil
 	}
 
-	req, err := http.NewRequest("GET", finalUrl, nil)
-	if err != nil {
-		return fmt.Errorf("unable to communicate with PokeAPI at this time: %v", err)
-	}
-
-	client := &http.Client{}
-	res, err := client.Do(req)
+	request, err := pokeapi.NewRequest("GET", url, nil, client)
 
 	if err != nil {
-		return fmt.Errorf("cannot perform request: %v", err)
+		return err
 	}
 
-	body, err := io.ReadAll(res.Body)
+	response, err := pokeapi.DoRequest(request, client)
 
 	if err != nil {
-		return fmt.Errorf("unable to retreive body from response: %v", err)
+		return err
 	}
 
-	if res.StatusCode > 299 {
-		return fmt.Errorf("response failed with status code: %d and body: %s", res.StatusCode, body)
-	}
-	defer res.Body.Close()
-
-	var LocationAreaResponse APIResponse
-	err = json.Unmarshal(body, &LocationAreaResponse)
+	body, err := pokeapi.GetResponse(response)
 	if err != nil {
-		return fmt.Errorf("unable to parse json: %v", err)
+		return err
 	}
 
-	config.Next = &LocationAreaResponse.Next
-	config.Previous = &LocationAreaResponse.Previous
+	results, err := pokeapi.Unmarshal[pokeapi.LocationArea](body, config)
 
-	for _, location := range LocationAreaResponse.Results {
+	if err != nil {
+		return err
+	}
+
+	for _, location := range results {
 		fmt.Println(location.Name)
 	}
-
-	fmt.Println(*config.Next)
-	fmt.Println(*config.Previous)
 
 	return nil
 }
