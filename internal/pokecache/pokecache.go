@@ -22,6 +22,9 @@ func NewCache(interval time.Duration) *Cache {
 		interval: interval,
 		mu:       sync.Mutex{},
 	}
+
+	go cache.reapLoop()
+
 	return &cache
 }
 
@@ -47,4 +50,23 @@ func (c *Cache) Get(key string) ([]byte, bool) {
 	}
 
 	return value.val, true
+}
+
+func (c *Cache) reapLoop() {
+	ticker := time.NewTicker(c.interval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			c.mu.Lock()
+			for key := range c.entries {
+				timeSinceCreation := time.Since(c.entries[key].createdAt)
+				if timeSinceCreation > c.interval {
+					delete(c.entries, key)
+				}
+			}
+			c.mu.Unlock()
+		}
+	}
 }
