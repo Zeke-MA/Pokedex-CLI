@@ -8,12 +8,14 @@ import (
 
 	"github.com/Zeke-MA/pokedexcli/commands"
 	"github.com/Zeke-MA/pokedexcli/internal/pokeapi"
+	"github.com/Zeke-MA/pokedexcli/internal/pokecache"
 )
 
 func main() {
 	scanner := bufio.NewScanner(os.Stdin)
 	pokeClient := pokeapi.NewClient()
 	pokeConfig := &pokeapi.Config{}
+	pokeCache := pokecache.NewCache(5)
 
 	for {
 		fmt.Print("Pokedex > ")
@@ -21,9 +23,10 @@ func main() {
 			input := strings.ToLower(scanner.Text())
 			words := strings.Fields(input)
 			command := words[0]
+			args := words[1:]
 			key, ok := commands.ValidCommands[command]
 			if ok {
-				key.Callback(pokeConfig, pokeClient)
+				key.Callback(pokeConfig, pokeClient, pokeCache, args)
 			} else {
 				fmt.Println("Unknown command")
 			}

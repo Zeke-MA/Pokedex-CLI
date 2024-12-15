@@ -1,16 +1,20 @@
 package commands
 
 import (
+	"flag"
 	"fmt"
 	"os"
+	"path"
+	"strconv"
 
 	"github.com/Zeke-MA/pokedexcli/internal/pokeapi"
+	"github.com/Zeke-MA/pokedexcli/internal/pokecache"
 )
 
 type cliCommand struct {
 	name        string
 	description string
-	Callback    func(cfg *pokeapi.Config, client *pokeapi.Client) error
+	Callback    func(cfg *pokeapi.Config, client *pokeapi.Client, cache *pokecache.Cache, args []string) error
 }
 
 var ValidCommands map[string]cliCommand
@@ -30,24 +34,29 @@ func init() {
 		},
 		"map": {
 			name:        "map",
-			description: "Displays names of the explorable locations. Limited to 20 results per command call.",
+			description: "Displays name and id of the explorable locations. Limited to 20 results per command call.",
 			Callback:    commandMap,
 		},
 		"mapb": {
 			name:        "mapb",
-			description: "Displays previous 20 locations if available.",
+			description: "Displays previous 20 location and id if available.",
 			Callback:    commandMapb,
+		},
+		"explore": {
+			name:        "explore",
+			description: "Explores the given location for all possible pokemon. Use -name flag for the location or -id for the id.",
+			Callback:    commandExplore,
 		},
 	}
 }
 
-func commandExit(config *pokeapi.Config, client *pokeapi.Client) error {
+func commandExit(config *pokeapi.Config, client *pokeapi.Client, cache *pokecache.Cache, args []string) error {
 	fmt.Println("Closing the Pokedex... Goodbye!")
 	os.Exit(0)
 	return nil
 }
 
-func commandHelp(config *pokeapi.Config, client *pokeapi.Client) error {
+func commandHelp(config *pokeapi.Config, client *pokeapi.Client, cache *pokecache.Cache, args []string) error {
 	fmt.Println("Welcome to the Pokedex!")
 	fmt.Println("Usage:")
 	fmt.Println("")
@@ -59,7 +68,7 @@ func commandHelp(config *pokeapi.Config, client *pokeapi.Client) error {
 	return nil
 }
 
-func commandMap(config *pokeapi.Config, client *pokeapi.Client) error {
+func commandMap(config *pokeapi.Config, client *pokeapi.Client, cache *pokecache.Cache, args []string) error {
 
 	endpoint := "location-area"
 
@@ -69,46 +78,9 @@ func commandMap(config *pokeapi.Config, client *pokeapi.Client) error {
 		url = *config.Next
 	}
 
-	request, err := pokeapi.NewRequest("GET", url, nil, client)
-
-	if err != nil {
-		return err
-	}
-
-	response, err := pokeapi.DoRequest(request, client)
-
-	if err != nil {
-		return err
-	}
-
-	body, err := pokeapi.GetResponse(response)
-	if err != nil {
-		return err
-	}
-
-	results, err := pokeapi.Unmarshal[pokeapi.LocationArea](body, config)
-
-	if err != nil {
-		return err
-	}
-
-	for _, location := range results {
-		fmt.Println(location.Name)
-	}
-
-	return nil
-}
-
-func commandMapb(config *pokeapi.Config, client *pokeapi.Client) error {
-
-	endpoint := "location-area"
-
-	url := pokeapi.CreateUrl(client, endpoint)
-
-	if config.Previous != nil && *config.Previous != "" {
-		url = *config.Previous
-	} else if config.Previous == nil || *config.Previous == "" {
-		fmt.Println("you're on the first page")
+	val, ok := cache.Get(url)
+	if ok {
+		fmt.Println(val)
 		return nil
 	}
 
@@ -136,8 +108,96 @@ func commandMapb(config *pokeapi.Config, client *pokeapi.Client) error {
 	}
 
 	for _, location := range results {
-		fmt.Println(location.Name)
+		fmt.Println("Name: " + location.Name + " ID: " + path.Base(location.Url))
 	}
 
 	return nil
+}
+
+func commandMapb(config *pokeapi.Config, client *pokeapi.Client, cache *pokecache.Cache, args []string) error {
+
+	endpoint := "location-area"
+
+	url := pokeapi.CreateUrl(client, endpoint)
+
+	if config.Previous != nil && *config.Previous != "" {
+		url = *config.Previous
+	} else if config.Previous == nil || *config.Previous == "" {
+		fmt.Println("you're on the first page")
+		return nil
+	}
+
+	val, ok := cache.Get(url)
+	if ok {
+		fmt.Println(val)
+		return nil
+	}
+
+	request, err := pokeapi.NewRequest("GET", url, nil, client)
+
+	if err != nil {
+		return err
+	}
+
+	response, err := pokeapi.DoRequest(request, client)
+
+	if err != nil {
+		return err
+	}
+
+	body, err := pokeapi.GetResponse(response)
+	if err != nil {
+		return err
+	}
+
+	cache.Add(url, body)
+
+	results, err := pokeapi.Unmarshal[pokeapi.LocationArea](body, config)
+
+	if err != nil {
+		return err
+	}
+
+	for _, location := range results {
+		fmt.Println("Name: " + location.Name + " ID: " + path.Base(location.Url))
+	}
+
+	return nil
+}
+
+func commandExplore(config *pokeapi.Config, client *pokeapi.Client, cache *pokecache.Cache, args []string) error {
+	locationVal, err := parseExploreArgs(args)
+	if err != nil {
+		return err
+	}
+	fmt.Print(locationVal)
+	// get endpoint
+	// generate url
+	// make request
+	// get response
+	// process response
+	// print out results
+	return nil
+}
+
+func parseExploreArgs(args []string) (string, error) {
+	flagSet := flag.NewFlagSet("explore", flag.ExitOnError)
+	locationName := flagSet.String("name", "", "location area to explore")
+	locationId := flagSet.Int("id", 0, "location area ID to explore")
+
+	err := flagSet.Parse(args)
+
+	if err != nil {
+		return "", err
+	}
+
+	if *locationName != "" {
+		return *locationName, nil
+	}
+
+	if *locationId != 0 {
+		return strconv.Itoa(*locationId), nil
+	}
+
+	return "", fmt.Errorf("please provide either -name or -id flag")
 }
