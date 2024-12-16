@@ -170,13 +170,44 @@ func commandExplore(config *pokeapi.Config, client *pokeapi.Client, cache *pokec
 	if err != nil {
 		return err
 	}
-	fmt.Print(locationVal)
-	// get endpoint
-	// generate url
-	// make request
-	// get response
-	// process response
-	// print out results
+
+	endpoint := "location-area"
+
+	url := pokeapi.CreateUrl(client, endpoint, locationVal)
+
+	fmt.Print(url)
+
+	val, ok := cache.Get(url)
+	if ok {
+		fmt.Println(val)
+		return nil
+	}
+
+	request, err := pokeapi.NewRequest("GET", url, nil, client)
+
+	if err != nil {
+		return err
+	}
+
+	response, err := pokeapi.DoRequest(request, client)
+
+	if err != nil {
+		return err
+	}
+
+	body, err := pokeapi.GetResponse(response)
+	if err != nil {
+		return err
+	}
+
+	cache.Add(url, body)
+
+	fmt.Print(string(body))
+
+	// Add in struct for the json structure of the location-area/id(name)
+	// Call Unmarshal to get the results slice
+	// print out the pokemon from the area
+
 	return nil
 }
 
