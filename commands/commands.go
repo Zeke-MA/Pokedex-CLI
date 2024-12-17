@@ -80,7 +80,15 @@ func commandMap(config *pokeapi.Config, client *pokeapi.Client, cache *pokecache
 
 	val, ok := cache.Get(url)
 	if ok {
-		fmt.Println(val)
+		results, err := pokeapi.Unmarshal[pokeapi.LocationArea](val, config)
+
+		if err != nil {
+			return err
+		}
+
+		for _, location := range results {
+			fmt.Println("Name: " + location.Name + " ID: " + path.Base(location.Url))
+		}
 		return nil
 	}
 
@@ -107,6 +115,8 @@ func commandMap(config *pokeapi.Config, client *pokeapi.Client, cache *pokecache
 		return err
 	}
 
+	cache.Add(url, body)
+
 	for _, location := range results {
 		fmt.Println("Name: " + location.Name + " ID: " + path.Base(location.Url))
 	}
@@ -129,7 +139,16 @@ func commandMapb(config *pokeapi.Config, client *pokeapi.Client, cache *pokecach
 
 	val, ok := cache.Get(url)
 	if ok {
-		fmt.Println(val)
+		fmt.Print("Using Cache!!!")
+		results, err := pokeapi.Unmarshal[pokeapi.LocationArea](val, config)
+
+		if err != nil {
+			return err
+		}
+
+		for _, location := range results {
+			fmt.Println("Name: " + location.Name + " ID: " + path.Base(location.Url))
+		}
 		return nil
 	}
 
@@ -175,11 +194,18 @@ func commandExplore(config *pokeapi.Config, client *pokeapi.Client, cache *pokec
 
 	url := pokeapi.CreateUrl(client, endpoint, locationVal)
 
-	fmt.Print(url)
-
 	val, ok := cache.Get(url)
 	if ok {
-		fmt.Println(val)
+		fmt.Print("Using Cache!!!")
+		names, err := pokeapi.UnmarshalExplore(val, config)
+
+		if err != nil {
+			return err
+		}
+
+		for _, name := range names {
+			fmt.Println("Name: " + name)
+		}
 		return nil
 	}
 
@@ -202,11 +228,15 @@ func commandExplore(config *pokeapi.Config, client *pokeapi.Client, cache *pokec
 
 	cache.Add(url, body)
 
-	fmt.Print(string(body))
+	names, err := pokeapi.UnmarshalExplore(body, config)
 
-	// Add in struct for the json structure of the location-area/id(name)
-	// Call Unmarshal to get the results slice
-	// print out the pokemon from the area
+	if err != nil {
+		return err
+	}
+
+	for _, name := range names {
+		fmt.Println("Name: " + name)
+	}
 
 	return nil
 }

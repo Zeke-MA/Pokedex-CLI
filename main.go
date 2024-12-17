@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/Zeke-MA/pokedexcli/commands"
 	"github.com/Zeke-MA/pokedexcli/internal/pokeapi"
@@ -15,7 +16,7 @@ func main() {
 	scanner := bufio.NewScanner(os.Stdin)
 	pokeClient := pokeapi.NewClient()
 	pokeConfig := &pokeapi.Config{}
-	pokeCache := pokecache.NewCache(5)
+	pokeCache := pokecache.NewCache(20 * time.Second)
 
 	for {
 		fmt.Print("Pokedex > ")
