@@ -47,6 +47,11 @@ func init() {
 			description: "Explores the given location for all possible pokemon. Use -name flag for the location or -id for the id.",
 			Callback:    commandExplore,
 		},
+		"catch": {
+			name:        "catch",
+			description: "Attempts to catch the pokemon in the given location",
+			Callback:    commandCatch,
+		},
 	}
 }
 
@@ -195,6 +200,7 @@ func commandExplore(config *pokeapi.Config, client *pokeapi.Client, cache *pokec
 	url := pokeapi.CreateUrl(client, endpoint, locationVal)
 
 	val, ok := cache.Get(url)
+	// need a better way to handle cache
 	if ok {
 		fmt.Print("Using Cache!!!")
 		names, err := pokeapi.UnmarshalExplore(val, config)
@@ -261,4 +267,8 @@ func parseExploreArgs(args []string) (string, error) {
 	}
 
 	return "", fmt.Errorf("please provide either -name or -id flag")
+}
+
+func commandCatch(config *pokeapi.Config, client *pokeapi.Client, cache *pokecache.Cache, args []string) error {
+	return nil
 }
