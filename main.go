@@ -10,6 +10,7 @@ import (
 	"github.com/Zeke-MA/pokedexcli/commands"
 	"github.com/Zeke-MA/pokedexcli/internal/pokeapi"
 	"github.com/Zeke-MA/pokedexcli/internal/pokecache"
+	"github.com/Zeke-MA/pokedexcli/internal/pokedex"
 )
 
 func main() {
@@ -17,6 +18,7 @@ func main() {
 	pokeClient := pokeapi.NewClient()
 	pokeConfig := &pokeapi.Config{}
 	pokeCache := pokecache.NewCache(20 * time.Second)
+	pokedex := pokedex.NewPokedex()
 
 	for {
 		fmt.Print("Pokedex > ")
@@ -27,7 +29,7 @@ func main() {
 			args := words[1:]
 			key, ok := commands.ValidCommands[command]
 			if ok {
-				key.Callback(pokeConfig, pokeClient, pokeCache, args)
+				key.Callback(pokeConfig, pokeClient, pokeCache, pokedex, args)
 			} else {
 				fmt.Println("Unknown command")
 			}

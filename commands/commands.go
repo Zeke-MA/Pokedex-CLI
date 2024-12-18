@@ -3,18 +3,20 @@ package commands
 import (
 	"flag"
 	"fmt"
+	"math/rand"
 	"os"
 	"path"
 	"strconv"
 
 	"github.com/Zeke-MA/pokedexcli/internal/pokeapi"
 	"github.com/Zeke-MA/pokedexcli/internal/pokecache"
+	"github.com/Zeke-MA/pokedexcli/internal/pokedex"
 )
 
 type cliCommand struct {
 	name        string
 	description string
-	Callback    func(cfg *pokeapi.Config, client *pokeapi.Client, cache *pokecache.Cache, args []string) error
+	Callback    func(cfg *pokeapi.Config, client *pokeapi.Client, cache *pokecache.Cache, pokedex *pokedex.Pokedex, args []string) error
 }
 
 var ValidCommands map[string]cliCommand
@@ -52,16 +54,21 @@ func init() {
 			description: "Attempts to catch the pokemon in the given location",
 			Callback:    commandCatch,
 		},
+		"inspect": {
+			name:        "inspect",
+			description: "Inspects the pokemon in your pokedex for its stats",
+			Callback:    commandInspect,
+		},
 	}
 }
 
-func commandExit(config *pokeapi.Config, client *pokeapi.Client, cache *pokecache.Cache, args []string) error {
+func commandExit(config *pokeapi.Config, client *pokeapi.Client, cache *pokecache.Cache, pokedex *pokedex.Pokedex, args []string) error {
 	fmt.Println("Closing the Pokedex... Goodbye!")
 	os.Exit(0)
 	return nil
 }
 
-func commandHelp(config *pokeapi.Config, client *pokeapi.Client, cache *pokecache.Cache, args []string) error {
+func commandHelp(config *pokeapi.Config, client *pokeapi.Client, cache *pokecache.Cache, pokedex *pokedex.Pokedex, args []string) error {
 	fmt.Println("Welcome to the Pokedex!")
 	fmt.Println("Usage:")
 	fmt.Println("")
@@ -73,7 +80,7 @@ func commandHelp(config *pokeapi.Config, client *pokeapi.Client, cache *pokecach
 	return nil
 }
 
-func commandMap(config *pokeapi.Config, client *pokeapi.Client, cache *pokecache.Cache, args []string) error {
+func commandMap(config *pokeapi.Config, client *pokeapi.Client, cache *pokecache.Cache, pokedex *pokedex.Pokedex, args []string) error {
 
 	endpoint := "location-area"
 
@@ -129,7 +136,7 @@ func commandMap(config *pokeapi.Config, client *pokeapi.Client, cache *pokecache
 	return nil
 }
 
-func commandMapb(config *pokeapi.Config, client *pokeapi.Client, cache *pokecache.Cache, args []string) error {
+func commandMapb(config *pokeapi.Config, client *pokeapi.Client, cache *pokecache.Cache, pokedex *pokedex.Pokedex, args []string) error {
 
 	endpoint := "location-area"
 
@@ -189,7 +196,7 @@ func commandMapb(config *pokeapi.Config, client *pokeapi.Client, cache *pokecach
 	return nil
 }
 
-func commandExplore(config *pokeapi.Config, client *pokeapi.Client, cache *pokecache.Cache, args []string) error {
+func commandExplore(config *pokeapi.Config, client *pokeapi.Client, cache *pokecache.Cache, pokedex *pokedex.Pokedex, args []string) error {
 	locationVal, err := parseExploreArgs(args)
 	if err != nil {
 		return err
@@ -269,6 +276,59 @@ func parseExploreArgs(args []string) (string, error) {
 	return "", fmt.Errorf("please provide either -name or -id flag")
 }
 
-func commandCatch(config *pokeapi.Config, client *pokeapi.Client, cache *pokecache.Cache, args []string) error {
+func commandCatch(config *pokeapi.Config, client *pokeapi.Client, cache *pokecache.Cache, pokedex *pokedex.Pokedex, args []string) error {
+	endpoint := "pokemon"
+	pokemonName := args[0]
+
+	url := pokeapi.CreateUrl(client, endpoint, pokemonName)
+
+	request, err := pokeapi.NewRequest("GET", url, nil, client)
+
+	if err != nil {
+		return err
+	}
+
+	response, err := pokeapi.DoRequest(request, client)
+
+	if err != nil {
+		return err
+	}
+
+	body, err := pokeapi.GetResponse(response)
+	if err != nil {
+		return err
+	}
+
+	pokemon, err := pokeapi.UnmarshalPokemonData(body, config)
+
+	if err != nil {
+		return err
+	}
+
+	// Determine success rate for RNG gods
+	success := 100 - (float64(pokemon.BaseExperience) * 0.08)
+
+	fmt.Printf("Throwing a Pokeball at %v...\n", pokemon.Name)
+
+	rng := rand.Intn(100)
+
+	if rng <= int(success) {
+		fmt.Printf("You have caught %v!\n", pokemon.Name)
+		_, ok := pokedex.CaughtPokemon[pokemonName]
+		if ok {
+			fmt.Printf("%v is already in your pokedex\n", pokemon.Name)
+		} else {
+			pokedex.CaughtPokemon[pokemonName] = pokemon
+			fmt.Printf("%v has been added to your pokedex!\n", pokemon.Name)
+		}
+
+	} else {
+		fmt.Printf("%v has escaped!\n", pokemon.Name)
+	}
+
+	return nil
+}
+
+func commandInspect(config *pokeapi.Config, client *pokeapi.Client, cache *pokecache.Cache, pokedex *pokedex.Pokedex, args []string) error {
 	return nil
 }
