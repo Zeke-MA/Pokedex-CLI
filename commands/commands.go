@@ -59,6 +59,11 @@ func init() {
 			description: "Inspects the pokemon in your pokedex for its stats",
 			Callback:    commandInspect,
 		},
+		"pokedex": {
+			name:        "pokedex",
+			description: "Lists all pokemon collected in your pokedex",
+			Callback:    commandPokedex,
+		},
 	}
 }
 
@@ -330,5 +335,32 @@ func commandCatch(config *pokeapi.Config, client *pokeapi.Client, cache *pokecac
 }
 
 func commandInspect(config *pokeapi.Config, client *pokeapi.Client, cache *pokecache.Cache, pokedex *pokedex.Pokedex, args []string) error {
+	name := args[0]
+
+	val, ok := pokedex.CaughtPokemon[name]
+	if !ok {
+		fmt.Printf("%v has not been caught. Unable to inspect\n", name)
+		return nil
+	}
+
+	fmt.Printf("Height: %v\n", val.Height)
+	fmt.Printf("Weight %v\n", val.Weight)
+	fmt.Println("Stats: ")
+	for _, stat := range val.Stats {
+		fmt.Printf("-%v: %v\n", stat.Stat.Name, stat.BaseStat)
+	}
+	fmt.Println("Types: ")
+
+	for _, ty := range val.Types {
+		fmt.Printf("-%v\n", ty.Type.Name)
+	}
+
+	return nil
+}
+
+func commandPokedex(config *pokeapi.Config, client *pokeapi.Client, cache *pokecache.Cache, pokedex *pokedex.Pokedex, args []string) error {
+	for key := range pokedex.CaughtPokemon {
+		fmt.Printf("-%v\n", key)
+	}
 	return nil
 }
